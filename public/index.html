@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Redirect Mapping Tool</title>
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --bg-color: #f9fafb;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        h1, h2 {
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        p.subtitle {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #6b7280;
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        @media (min-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        input[type="file"],
+        input[type="number"] {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.25rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .file-upload {
+            border: 2px dashed var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        
+        .file-upload:hover {
+            border-color: var(--primary-color);
+        }
+        
+        .file-upload input[type="file"] {
+            display: none;
+        }
+        
+        .file-name {
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--success-color);
+        }
+        
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.25rem;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 0.25rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .alert-info {
+            background-color: #e0f2fe;
+            border: 1px solid #bae6fd;
+            color: #0369a1;
+        }
+        
+        .alert-success {
+            background-color: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #047857;
+        }
+        
+        .alert-error {
+            background-color: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+        }
+        
+        .progress-container {
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 0.5rem;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+        
+        .progress-bar-fill {
+            height: 100%;
+            background-color: var(--primary-color);
+            border-radius: 9999px;
+            transition: width 0.3s;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        th {
+            background-color: #f3f4f6;
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 0.5rem;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            overflow: hidden;
+            margin-right: 0.5rem;
+        }
+        
+        .confidence-bar-fill {
+            height: 100%;
+            border-radius: 9999px;
+        }
+        
+        .confidence-high {
+            background-color: var(--success-color);
+        }
+        
+        .confidence-medium {
+            background-color: var(--warning-color);
+        }
+        
+        .confidence-low {
+            background-color: var(--error-color);
+        }
+        
+        .confidence-container {
+            display: flex;
+            align-items: center;
+        }
+        
+        details {
+            margin-top: 1rem;
+        }
+        
+        summary {
+            cursor: pointer;
+            color: #4b5563;
+            font-weight: 500;
+        }
+        
+        .advanced-settings {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 0.5rem;
+        }
+        
+        .help-text {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>URL Redirect Mapping Tool</h1>
+        <p class="subtitle">Secure server-side processing with OpenAI API</p>
+        
+        <div class="card">
+            <h2>Upload URL Files</h2>
+            
+            <div class="grid">
+                <div>
+                    <label for="oldUrlsFile">Old URLs</label>
+                    <div class="file-upload" id="oldUrlsUpload">
+                        <input type="file" id="oldUrlsFile" accept=".csv,.txt">
+                        <p>Drop CSV file here or click to upload</p>
+                        <div class="file-name" id="oldUrlsFileName"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="newUrlsFile">New URLs</label>
+                    <div class="file-upload" id="newUrlsUpload">
+                        <input type="file" id="newUrlsFile" accept=".csv,.txt">
+                        <p>Drop CSV file here or click to upload</p>
+                        <div class="file-name" id="newUrlsFileName"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <details>
+                <summary>Advanced Settings</summary>
+                <div class="advanced-settings">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showExplanations">
+                        <label for="showExplanations">Generate explanations for URL matches</label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="batchSize">Batch Size</label>
+                        <input type="number" id="batchSize" min="1" max="20" value="5">
+                        <p class="help-text">Number of URLs to process in each batch (1-20)</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="batchDelay">Delay Between Batches (ms)</label>
+                        <input type="number" id="batchDelay" min="500" max="5000" step="100" value="1000">
+                        <p class="help-text">Time to wait between batches in milliseconds (500-5000)</p>
+                    </div>
+                </div>
+            </details>
+        </div>
+        
+        <div class="button-container">
+            <button id="processButton" disabled>Generate URL Mappings</button>
+        </div>
+        
+        <div id="alertContainer"></div>
+        
+        <div id="progressContainer" style="display: none;" class="alert alert-info">
+            <div class="progress-container">
+                <span id="progressStatus">Processing...</span>
+                <span id="progressPercentage">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+            </div>
+        </div>
+        
+        <div id="resultsContainer" style="display: none;" class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin-bottom: 0;">URL Mappings</h2>
+                <button id="downloadButton">Download CSV</button>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Old URL</th>
+                            <th>New URL</th>
+                            <th>Confidence</th>
+                            <th id="explanationHeader" style="display: none;">Explanation</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const oldUrlsFile = document.getElementById('oldUrlsFile');
+        const newUrlsFile = document.getElementById('newUrlsFile');
+        const oldUrlsFileName = document.getElementById('oldUrlsFileName');
+        const newUrlsFileName = document.getElementById('newUrlsFileName');
+        const oldUrlsUpload = document.getElementById('oldUrlsUpload');
+        const newUrlsUpload = document.getElementById('newUrlsUpload');
+        const processButton = document.getElementById('processButton');
+        const showExplanations = document.getElementById('showExplanations');
+        const batchSize = document.getElementById('batchSize');
+        const batchDelay = document.getElementById('batchDelay');
+        const alertContainer = document.getElementById('alertContainer');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressStatus = document.getElementById('progressStatus');
+        const progressPercentage = document.getElementById('progressPercentage');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const resultsTableBody = document.getElementById('resultsTableBody');
+        const explanationHeader = document.getElementById('explanationHeader');
+        const downloadButton = document.getElementById('downloadButton');
+
+        // State
+        let oldUrls = [];
+        let newUrls = [];
+        let mappings = [];
+        let isProcessing = false;
+
+        // File upload handlers
+        oldUrlsUpload.addEventListener('click', () => oldUrlsFile.click());
+        newUrlsUpload.addEventListener('click', () => newUrlsFile.click());
+
+        oldUrlsFile.addEventListener('change', (event) => {
+            handleFileUpload(event.target.files[0], 'old');
+        });
+
+        newUrlsFile.addEventListener('change', (event) => {
+            handleFileUpload(event.target.files[0], 'new');
+        });
+
+        // Drag and drop handlers
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            oldUrlsUpload.addEventListener(eventName, preventDefaults, false);
+            newUrlsUpload.addEventListener(eventName, preventDefaults, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            oldUrlsUpload.addEventListener(eventName, () => highlight(oldUrlsUpload), false);
+            newUrlsUpload.addEventListener(eventName, () => highlight(newUrlsUpload), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            oldUrlsUpload.addEventListener(eventName, () => unhighlight(oldUrlsUpload), false);
+            newUrlsUpload.addEventListener(eventName, () => unhighlight(newUrlsUpload), false);
+        });
+
+        oldUrlsUpload.addEventListener('drop', (event) => {
+            const file = event.dataTransfer.files[0];
+            handleFileUpload(file, 'old');
+        }, false);
+
+        newUrlsUpload.addEventListener('drop', (event) => {
+            const file = event.dataTransfer.files[0];
+            handleFileUpload(file, 'new');
+        }, false);
+
+        // Process button handler
+        processButton.addEventListener('click', processFiles);
+
+        // Download button handler
+        downloadButton.addEventListener('click', downloadMappings);
+
+        // Helper functions
+        function preventDefaults(event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function highlight(element) {
+            element.style.borderColor = 'var(--primary-color)';
+        }
+
+        function unhighlight(element) {
+            element.style.borderColor = 'var(--border-color)';
+        }
+
+        function handleFileUpload(file, type) {
+            if (!file) return;
+            
+            if (file.type !== 'text/csv' && !file.name.endsWith('.csv') && !file.name.endsWith('.txt')) {
+                showAlert('Please upload a CSV or TXT file', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            
+            reader.onload = (event) => {
+                try {
+                    const text = event.target.result;
+                    const lines = text.split('\n').filter(line => line.trim() !== '');
+                    
+                    if (type === 'old') {
+                        oldUrls = lines;
+                        oldUrlsFileName.textContent = `File: ${file.name} (${lines.length} URLs)`;
+                    } else {
+                        newUrls = lines;
+                        newUrlsFileName.textContent = `File: ${file.name} (${lines.length} URLs)`;
+                    }
+                    
+                    updateProcessButton();
+                } catch (error) {
+                    showAlert(`Failed to parse file: ${error.message}`, 'error');
+                }
+            };
+            
+            reader.onerror = () => {
+                showAlert('Failed to read file', 'error');
+            };
+            
+            reader.readAsText(file);
+        }
+
+        function updateProcessButton() {
+            processButton.disabled = oldUrls.length === 0 || newUrls.length === 0 || isProcessing;
+        }
+
+        function showAlert(message, type = 'info') {
+            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            
+            // Auto-hide success alerts after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    const alert = alertContainer.querySelector('.alert');
+                    if (alert) alert.remove();
+                }, 5000);
+            }
+        }
+
+        function updateProgress(status, progress) {
+            progressStatus.textContent = status;
+            progressPercentage.textContent = `${Math.round(progress)}%`;
+            progressBarFill.style.width = `${progress}%`;
+            progressContainer.style.display = 'block';
+        }
+
+        async function processFiles() {
+            if (oldUrls.length === 0 || newUrls.length === 0) {
+                showAlert('Please upload both old and new URL files', 'error');
+                return;
+            }
+
+            isProcessing = true;
+            updateProcessButton();
+            showAlert('');
+            resultsContainer.style.display = 'none';
+            progressContainer.style.display = 'block';
+            updateProgress('Processing URLs...', 0);
+
+            try {
+                // Step 1: Process old URLs
+                updateProgress('Processing old URLs...', 10);
+                
+                // Step 2: Process new URLs
+                updateProgress('Processing new URLs...', 30);
+                
+                // Step 3: Find matches
+                updateProgress('Finding best matches...', 50);
+                
+                const response = await fetch('/api/find-matches', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        oldUrls,
+                        newUrls,
+                    }),
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to process URLs');
+                }
+                
+                const data = await response.json();
+                mappings = data.mappings;
+                
+                // Step 4: Generate explanations if enabled
+                if (showExplanations.checked && mappings.length > 0) {
+                    updateProgress('Generating explanations...', 75);
+                    
+                    for (let i = 0; i < mappings.length; i++) {
+                        const mapping = mappings[i];
+                        
+                        try {
+                            const explResponse = await fetch('/api/explanations', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    oldUrl: mapping.oldUrl,
+                                    newUrl: mapping.newUrl,
+                                    confidence: mapping.confidence,
+                                }),
+                            });
+                            
+                            if (explResponse.ok) {
+                                const explData = await explResponse.json();
+                                mapping.explanation = explData.explanation;
+                            }
+                        } catch (error) {
+                            console.error('Error generating explanation:', error);
+                        }
+                        
+                        // Update progress for explanations
+                        updateProgress('Generating explanations...', 75 + (i / mappings.length) * 20);
+                    }
+                }
+                
+                // Step 5: Display results
+                updateProgress('Completed successfully!', 100);
+                displayResults(mappings);
+                showAlert('URL mapping completed successfully!', 'success');
+            } catch (error) {
+                console.error('Error processing files:', error);
+                showAlert(`Error: ${error.message}`, 'error');
+                progressContainer.style.display = 'none';
+            } finally {
+                isProcessing = false;
+                updateProcessButton();
+            }
+        }
+
+        function displayResults(mappings) {
+            if (mappings.length === 0) return;
+            
+            resultsTableBody.innerHTML = '';
+            explanationHeader.style.display = showExplanations.checked ? 'table-cell' : 'none';
+            
+            mappings.forEach(mapping => {
+                const row = document.createElement('tr');
+                
+                // Old URL cell
+                const oldUrlCell = document.createElement('td');
+                oldUrlCell.textContent = mapping.oldUrl;
+                row.appendChild(oldUrlCell);
+                
+                // New URL cell
+                const newUrlCell = document.createElement('td');
+                newUrlCell.textContent = mapping.newUrl;
+                row.appendChild(newUrlCell);
+                
+                // Confidence cell
+                const confidenceCell = document.createElement('td');
+                const confidenceContainer = document.createElement('div');
+                confidenceContainer.className = 'confidence-container';
+                
+                const confidenceBar = document.createElement('div');
+                confidenceBar.className = 'confidence-bar';
+                
+                const confidenceBarFill = document.createElement('div');
+                confidenceBarFill.className = 'confidence-bar-fill';
+                
+                if (mapping.confidence > 0.7) {
+                    confidenceBarFill.classList.add('confidence-high');
+                } else if (mapping.confidence > 0.4) {
+                    confidenceBarFill.classList.add('confidence-medium');
+                } else {
+                    confidenceBarFill.classList.add('confidence-low');
+                }
+                
+                confidenceBarFill.style.width = `${mapping.confidence * 100}%`;
+                confidenceBar.appendChild(confidenceBarFill);
+                
+                const confidenceText = document.createElement('span');
+                confidenceText.textContent = `${(mapping.confidence * 100).toFixed(1)}%`;
+                
+                confidenceContainer.appendChild(confidenceBar);
+                confidenceContainer.appendChild(confidenceText);
+                confidenceCell.appendChild(confidenceContainer);
+                
+                row.appendChild(confidenceCell);
+                
+                // Explanation cell (if enabled)
+                if (showExplanations.checked) {
+                    const explanationCell = document.createElement('td');
+                    explanationCell.textContent = mapping.explanation || 'No explanation available';
+                    row.appendChild(explanationCell);
+                }
+                
+                resultsTableBody.appendChild(row);
+            });
+            
+            resultsContainer.style.display = 'block';
+        }
+
+        function downloadMappings() {
+            if (mappings.length === 0) return;
+            
+            const headers = ['Old URL', 'New URL', 'Confidence'];
+            if (showExplanations.checked) headers.push('Explanation');
+            
+            const csvContent = [
+                headers.join(','),
+                ...mappings.map(m => {
+                    const row = [
+                        `"${m.oldUrl.replace(/"/g, '""')}"`,
+                        `"${m.newUrl.replace(/"/g, '""')}"`,
+                        m.confidence
+                    ];
+                    
+                    if (showExplanations.checked) {
+                        row.push(`"${(m.explanation || '').replace(/"/g, '""')}"`);
+                    }
+                    
+                    return row.join(',');
+                })
+            ].join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'url_mappings.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
