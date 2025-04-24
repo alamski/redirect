@@ -268,26 +268,30 @@
 <body>
     <div class="container">
         <h1>URL Redirect Mapping Tool</h1>
-        <p class="subtitle">Secure server-side processing with OpenAI API</p>
+        <div class="subtitle" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <p>Upload your old and new URLs to generate a mapping of redirects. This tool uses the OpenAI API to process the URLs and generate a mapping of redirects.</p>
+            
+            <p>And get a confidence score for each mapping. This app is made with vibe coding and is open source.</p>
+        </div>
         
-        <div class="card">
+        <div class="card" style="margin-top: 60px;">
             <h2>Upload URL Files</h2>
             
             <div class="grid">
                 <div>
                     <label for="oldUrlsFile">Old URLs</label>
-                    <div class="file-upload" id="oldUrlsUpload">
+                    <div class="file-upload" id="oldUrlsUpload" style="background-color: #2a2a2a; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);">
                         <input type="file" id="oldUrlsFile" accept=".csv,.txt">
-                        <p>Drop CSV file here or click to upload</p>
+                        <p style="color: #e5e7eb;">Drop CSV file here or click to upload</p>
                         <div class="file-name" id="oldUrlsFileName"></div>
                     </div>
                 </div>
                 
                 <div>
                     <label for="newUrlsFile">New URLs</label>
-                    <div class="file-upload" id="newUrlsUpload">
+                    <div class="file-upload" id="newUrlsUpload" style="background-color: #2a2a2a; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);">
                         <input type="file" id="newUrlsFile" accept=".csv,.txt">
-                        <p>Drop CSV file here or click to upload</p>
+                        <p style="color: #e5e7eb;">Drop CSV file here or click to upload</p>
                         <div class="file-name" id="newUrlsFileName"></div>
                     </div>
                 </div>
@@ -317,7 +321,7 @@
         </div>
         
         <div class="button-container">
-            <button id="processButton" disabled>Generate URL Mappings</button>
+            <button id="processButton" disabled style="background-color: #2dd4bf; color: #f8fafc;">Generate URL Mappings</button>
         </div>
         
         <div id="alertContainer"></div>
