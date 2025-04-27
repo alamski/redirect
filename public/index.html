@@ -1,153 +1,935 @@
-// Error handling function with improved user feedback
-function showAlert(message, type = 'info', solution = null) {
-  let alertHtml = `<div class="alert alert-${type}">${message}`;
-  
-  if (solution) {
-    alertHtml += `<p class="alert-solution">${solution}</p>`;
-  }
-  
-  alertHtml += '</div>';
-  alertContainer.innerHTML = alertHtml;
-  
-  // Auto-hide success alerts after 5 seconds
-  if (type === 'success') {
-    setTimeout(() => {
-      const alert = alertContainer.querySelector('.alert');
-      if (alert) alert.remove();
-    }, 5000);
-  }
-}
-
-// Process files with improved error handling and retry logic
-async function processFiles() {
-  if (oldUrls.length === 0 || newUrls.length === 0) {
-    showAlert(
-      'Please upload both old and new URL files', 
-      'error',
-      'You need to upload two CSV files: one with old URLs and one with new URLs.'
-    );
-    return;
-  }
-
-  isProcessing = true;
-  updateProcessButton();
-  showAlert('');
-  resultsContainer.style.display = 'none';
-  progressContainer.style.display = 'block';
-  updateProgress('Processing URLs...', 0);
-
-  try {
-    // Step 1: Process old URLs
-    updateProgress('Processing old URLs...', 10);
-    
-    // Step 2: Process new URLs
-    updateProgress('Processing new URLs...', 30);
-    
-    // Step 3: Find matches
-    updateProgress('Finding best matches...', 50);
-    
-    // Get batch size and delay from settings
-    const batchSizeValue = parseInt(batchSize.value) || 5;
-    const batchDelayValue = parseInt(batchDelay.value) || 1000;
-    
-    // Validate settings
-    if (batchSizeValue < 1 || batchSizeValue > 20) {
-      throw new Error('Batch size must be between 1 and 20');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure OpenAI Proxy - URL Mapping Demo</title>
+  <style>
+    :root {
+      --primary-color: #3498db;
+      --secondary-color: #2ecc71;
+      --danger-color: #e74c3c;
+      --warning-color: #f39c12;
+      --dark-color: #2c3e50;
+      --light-color: #ecf0f1;
+      --border-radius: 4px;
+      --box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     
-    if (batchDelayValue < 500 || batchDelayValue > 5000) {
-      throw new Error('Batch delay must be between 500ms and 5000ms');
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
     
-    const response = await fetch('/api/find-matches', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        oldUrls,
-        newUrls,
-        batchSize: batchSizeValue,
-        delayMs: batchDelayValue
-      }),
-    });
-    
-    // Handle HTTP errors
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to process URLs', { 
-        cause: { solution: errorData.solution } 
-      });
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f8f9fa;
+      padding: 20px;
     }
     
-    const data = await response.json();
-    mappings = data.mappings;
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: white;
+      border-radius: var(--border-radius);
+      box-shadow: var(--box-shadow);
+    }
     
-    // Step 4: Generate explanations if enabled
-    if (showExplanations.checked && mappings.length > 0) {
-      updateProgress('Generating explanations...', 75);
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    h1 {
+      color: var(--dark-color);
+      margin-bottom: 10px;
+    }
+    
+    .subtitle {
+      color: #666;
+      font-size: 1.1rem;
+    }
+    
+    .demo-badge {
+      display: inline-block;
+      background-color: var(--warning-color);
+      color: white;
+      padding: 3px 8px;
+      border-radius: var(--border-radius);
+      font-size: 0.8rem;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+    
+    .card {
+      background-color: white;
+      border-radius: var(--border-radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--box-shadow);
+    }
+    
+    .card-title {
+      font-size: 1.2rem;
+      margin-bottom: 15px;
+      color: var(--dark-color);
+      display: flex;
+      align-items: center;
+    }
+    
+    .card-title i {
+      margin-right: 10px;
+      color: var(--primary-color);
+    }
+    
+    .upload-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .upload-box {
+      flex: 1;
+      min-width: 300px;
+      border: 2px dashed #ccc;
+      border-radius: var(--border-radius);
+      padding: 20px;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .upload-box:hover {
+      border-color: var(--primary-color);
+    }
+    
+    .upload-box.active {
+      border-color: var(--secondary-color);
+      background-color: rgba(46, 204, 113, 0.05);
+    }
+    
+    .upload-icon {
+      font-size: 2rem;
+      color: #ccc;
+      margin-bottom: 10px;
+    }
+    
+    .upload-box.active .upload-icon {
+      color: var(--secondary-color);
+    }
+    
+    .upload-text {
+      margin-bottom: 10px;
+    }
+    
+    .file-info {
+      font-size: 0.9rem;
+      color: #666;
+    }
+    
+    .btn {
+      display: inline-block;
+      background-color: var(--primary-color);
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+    
+    .btn:hover {
+      background-color: #2980b9;
+    }
+    
+    .btn:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+    
+    .btn-secondary {
+      background-color: #95a5a6;
+    }
+    
+    .btn-secondary:hover {
+      background-color: #7f8c8d;
+    }
+    
+    .btn-success {
+      background-color: var(--secondary-color);
+    }
+    
+    .btn-success:hover {
+      background-color: #27ae60;
+    }
+    
+    .alert {
+      padding: 15px;
+      border-radius: var(--border-radius);
+      margin-bottom: 20px;
+      color: white;
+    }
+    
+    .alert-info {
+      background-color: var(--primary-color);
+    }
+    
+    .alert-success {
+      background-color: var(--secondary-color);
+    }
+    
+    .alert-error {
+      background-color: var(--danger-color);
+    }
+    
+    .alert-solution {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+    
+    .progress-container {
+      margin-bottom: 20px;
+      display: none;
+    }
+    
+    .progress-text {
+      margin-bottom: 10px;
+    }
+    
+    .progress-bar {
+      height: 10px;
+      background-color: #eee;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    
+    .progress-bar-fill {
+      height: 100%;
+      background-color: var(--primary-color);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    
+    .settings-container {
+      margin-bottom: 20px;
+    }
+    
+    .settings-toggle {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .settings-toggle i {
+      margin-right: 10px;
+      transition: transform 0.3s ease;
+    }
+    
+    .settings-toggle.open i {
+      transform: rotate(90deg);
+    }
+    
+    .settings-content {
+      display: none;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: var(--border-radius);
+      margin-bottom: 20px;
+    }
+    
+    .settings-content.open {
+      display: block;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    
+    .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: var(--border-radius);
+      font-size: 1rem;
+    }
+    
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+    
+    .form-row .form-group {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+    }
+    
+    .checkbox-group input {
+      margin-right: 10px;
+    }
+    
+    .results-container {
+      display: none;
+      margin-top: 30px;
+    }
+    
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .results-title {
+      font-size: 1.2rem;
+      color: var(--dark-color);
+    }
+    
+    .results-actions {
+      display: flex;
+      gap: 10px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    
+    th, td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    th {
+      background-color: #f8f9fa;
+      font-weight: 600;
+    }
+    
+    tr:hover {
+      background-color: #f8f9fa;
+    }
+    
+    .confidence-cell {
+      width: 120px;
+    }
+    
+    .confidence-bar {
+      height: 8px;
+      background-color: #eee;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+    
+    .confidence-fill {
+      height: 100%;
+      border-radius: 4px;
+    }
+    
+    .confidence-high {
+      background-color: var(--secondary-color);
+    }
+    
+    .confidence-medium {
+      background-color: var(--warning-color);
+    }
+    
+    .confidence-low {
+      background-color: var(--danger-color);
+    }
+    
+    .explanation-cell {
+      font-size: 0.9rem;
+      color: #666;
+      font-style: italic;
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+      color: #666;
+      font-size: 0.9rem;
+    }
+    
+    @media (max-width: 768px) {
+      .upload-container {
+        flex-direction: column;
+      }
       
-      // Process explanations in batches to avoid rate limits
-      const explanationBatchSize = 3; // Smaller batch size for explanations
+      .upload-box {
+        width: 100%;
+      }
       
-      for (let i = 0; i < mappings.length; i += explanationBatchSize) {
-        const batch = mappings.slice(i, i + explanationBatchSize);
+      .form-row {
+        flex-direction: column;
+      }
+      
+      .results-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>URL Mapping Tool <span class="demo-badge">Demo</span></h1>
+      <p class="subtitle">Securely map old URLs to new URLs with AI-powered similarity matching</p>
+    </header>
+    
+    <div id="alertContainer"></div>
+    
+    <div class="card">
+      <h2 class="card-title">
+        <i>📤</i> Upload URL Files
+      </h2>
+      
+      <div class="upload-container">
+        <div id="oldUrlUpload" class="upload-box">
+          <div class="upload-icon">📁</div>
+          <p class="upload-text">Drop your <strong>old URLs</strong> CSV file here</p>
+          <p class="file-info">or click to browse</p>
+          <input type="file" id="oldUrlInput" accept=".csv" style="display: none;">
+        </div>
         
-        // Process batch with Promise.all for parallel requests
-        const batchPromises = batch.map(async (mapping, index) => {
-          try {
-            const explResponse = await fetch('/api/explanations', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                oldUrl: mapping.oldUrl,
-                newUrl: mapping.newUrl,
-                confidence: mapping.confidence,
-              }),
-            });
+        <div id="newUrlUpload" class="upload-box">
+          <div class="upload-icon">📁</div>
+          <p class="upload-text">Drop your <strong>new URLs</strong> CSV file here</p>
+          <p class="file-info">or click to browse</p>
+          <input type="file" id="newUrlInput" accept=".csv" style="display: none;">
+        </div>
+      </div>
+      
+      <div class="settings-container">
+        <div class="settings-toggle">
+          <i>▶</i> Advanced Settings
+        </div>
+        
+        <div class="settings-content">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="batchSize">Batch Size</label>
+              <input type="number" id="batchSize" class="form-control" value="5" min="1" max="20">
+              <small>Number of URLs to process in each batch (1-20)</small>
+            </div>
             
-            if (explResponse.ok) {
-              const explData = await explResponse.json();
-              mapping.explanation = explData.explanation;
-            } else {
-              mapping.explanation = 'Could not generate explanation.';
-            }
-          } catch (error) {
-            console.error('Error generating explanation:', error);
-            mapping.explanation = 'Error generating explanation.';
-          }
-        });
+            <div class="form-group">
+              <label for="batchDelay">Batch Delay (ms)</label>
+              <input type="number" id="batchDelay" class="form-control" value="1000" min="500" max="5000" step="100">
+              <small>Delay between batches in milliseconds (500-5000)</small>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <div class="checkbox-group">
+              <input type="checkbox" id="showExplanations" checked>
+              <label for="showExplanations">Generate explanations for URL matches</label>
+            </div>
+            <small>Provides natural language explanations for why URLs were matched</small>
+          </div>
+        </div>
+      </div>
+      
+      <button id="processButton" class="btn" disabled>Generate URL Mappings</button>
+    </div>
+    
+    <div id="progressContainer" class="progress-container">
+      <p id="progressText" class="progress-text">Processing...</p>
+      <div class="progress-bar">
+        <div id="progressBarFill" class="progress-bar-fill"></div>
+      </div>
+    </div>
+    
+    <div id="resultsContainer" class="results-container">
+      <div class="results-header">
+        <h3 class="results-title">URL Mapping Results</h3>
+        <div class="results-actions">
+          <button id="downloadButton" class="btn btn-secondary">Download CSV</button>
+        </div>
+      </div>
+      
+      <table id="resultsTable">
+        <thead>
+          <tr>
+            <th>Old URL</th>
+            <th>New URL</th>
+            <th class="confidence-cell">Confidence</th>
+            <th>Explanation</th>
+          </tr>
+        </thead>
+        <tbody id="resultsTableBody"></tbody>
+      </table>
+    </div>
+    
+    <div class="footer">
+      <p>Secure OpenAI Proxy Demo - URL Mapping Tool</p>
+      <p><small>This is a demonstration with simulated API responses. No real API key is required.</small></p>
+    </div>
+  </div>
+  
+  <script>
+    // DOM Elements
+    const oldUrlUpload = document.getElementById('oldUrlUpload');
+    const newUrlUpload = document.getElementById('newUrlUpload');
+    const oldUrlInput = document.getElementById('oldUrlInput');
+    const newUrlInput = document.getElementById('newUrlInput');
+    const processButton = document.getElementById('processButton');
+    const alertContainer = document.getElementById('alertContainer');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressText = document.getElementById('progressText');
+    const progressBarFill = document.getElementById('progressBarFill');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const resultsTableBody = document.getElementById('resultsTableBody');
+    const downloadButton = document.getElementById('downloadButton');
+    const settingsToggle = document.querySelector('.settings-toggle');
+    const settingsContent = document.querySelector('.settings-content');
+    const batchSize = document.getElementById('batchSize');
+    const batchDelay = document.getElementById('batchDelay');
+    const showExplanations = document.getElementById('showExplanations');
+    
+    // State variables
+    let oldUrls = [];
+    let newUrls = [];
+    let mappings = [];
+    let isProcessing = false;
+    
+    // Initialize
+    function init() {
+      setupEventListeners();
+      showAlert('Welcome to the URL Mapping Tool Demo! Upload your old and new URL CSV files to get started.', 'info');
+    }
+    
+    // Set up event listeners
+    function setupEventListeners() {
+      // File upload events
+      oldUrlUpload.addEventListener('click', () => oldUrlInput.click());
+      newUrlUpload.addEventListener('click', () => newUrlInput.click());
+      oldUrlInput.addEventListener('change', handleOldUrlUpload);
+      newUrlInput.addEventListener('change', handleNewUrlUpload);
+      
+      // Drag and drop events
+      setupDragAndDrop(oldUrlUpload, handleOldUrlUpload);
+      setupDragAndDrop(newUrlUpload, handleNewUrlUpload);
+      
+      // Process button
+      processButton.addEventListener('click', processFiles);
+      
+      // Download button
+      downloadButton.addEventListener('click', downloadCSV);
+      
+      // Settings toggle
+      settingsToggle.addEventListener('click', toggleSettings);
+    }
+    
+    // Set up drag and drop
+    function setupDragAndDrop(element, handler) {
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        element.addEventListener(eventName, preventDefaults, false);
+      });
+      
+      ['dragenter', 'dragover'].forEach(eventName => {
+        element.addEventListener(eventName, () => {
+          element.classList.add('active');
+        }, false);
+      });
+      
+      ['dragleave', 'drop'].forEach(eventName => {
+        element.addEventListener(eventName, () => {
+          element.classList.remove('active');
+        }, false);
+      });
+      
+      element.addEventListener('drop', e => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
         
-        // Wait for all explanations in this batch
-        await Promise.all(batchPromises);
-        
-        // Add delay between batches
-        if (i + explanationBatchSize < mappings.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+        if (files.length) {
+          const fileInput = element === oldUrlUpload ? oldUrlInput : newUrlInput;
+          fileInput.files = files;
+          handler({ target: { files } });
         }
-        
-        // Update progress for explanations
-        updateProgress('Generating explanations...', 75 + (i / mappings.length) * 20);
+      }, false);
+    }
+    
+    // Prevent default drag behaviors
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    // Handle old URL file upload
+    function handleOldUrlUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+        showAlert('Please upload a CSV file for old URLs', 'error', 'The file must be in CSV format.');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          oldUrls = parseCSV(event.target.result);
+          oldUrlUpload.classList.add('active');
+          oldUrlUpload.querySelector('.file-info').textContent = `${file.name} (${oldUrls.length} URLs)`;
+          updateProcessButton();
+          showAlert(`Old URLs file loaded: ${oldUrls.length} URLs found`, 'success');
+        } catch (error) {
+          showAlert('Error parsing old URLs file', 'error', error.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+    
+    // Handle new URL file upload
+    function handleNewUrlUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+        showAlert('Please upload a CSV file for new URLs', 'error', 'The file must be in CSV format.');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          newUrls = parseCSV(event.target.result);
+          newUrlUpload.classList.add('active');
+          newUrlUpload.querySelector('.file-info').textContent = `${file.name} (${newUrls.length} URLs)`;
+          updateProcessButton();
+          showAlert(`New URLs file loaded: ${newUrls.length} URLs found`, 'success');
+        } catch (error) {
+          showAlert('Error parsing new URLs file', 'error', error.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+    
+    // Parse CSV file
+    function parseCSV(text) {
+      const lines = text.split(/\r\n|\n/);
+      const urls = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line) {
+          // Handle CSV with or without headers
+          if (i === 0 && (line.toLowerCase() === 'url' || line.toLowerCase() === 'urls')) {
+            continue;
+          }
+          
+          // Split by comma and take the first value as URL
+          const parts = line.split(',');
+          const url = parts[0].trim();
+          
+          if (url && isValidURL(url)) {
+            urls.push(url);
+          }
+        }
+      }
+      
+      if (urls.length === 0) {
+        throw new Error('No valid URLs found in the file');
+      }
+      
+      return urls;
+    }
+    
+    // Check if string is a valid URL
+    function isValidURL(string) {
+      try {
+        new URL(string);
+        return true;
+      } catch (_) {
+        return false;
       }
     }
     
-    // Step 5: Display results
-    updateProgress('Completed successfully!', 100);
-    displayResults(mappings);
-    showAlert('URL mapping completed successfully!', 'success');
-  } catch (error) {
-    console.error('Error processing files:', error);
+    // Update process button state
+    function updateProcessButton() {
+      processButton.disabled = oldUrls.length === 0 || newUrls.length === 0 || isProcessing;
+      
+      if (isProcessing) {
+        processButton.textContent = 'Processing...';
+      } else {
+        processButton.textContent = 'Generate URL Mappings';
+      }
+    }
     
-    // Extract solution from error cause if available
-    const solution = error.cause?.solution || 
-      'Try adjusting batch size and delay in advanced settings, or check your network connection.';
+    // Show alert message
+    function showAlert(message, type = 'info', solution = null) {
+      let alertHtml = `<div class="alert alert-${type}">${message}`;
+      
+      if (solution) {
+        alertHtml += `<p class="alert-solution">${solution}</p>`;
+      }
+      
+      alertHtml += '</div>';
+      alertContainer.innerHTML = alertHtml;
+      
+      // Auto-hide success alerts after 5 seconds
+      if (type === 'success') {
+        setTimeout(() => {
+          const alert = alertContainer.querySelector('.alert');
+          if (alert) alert.remove();
+        }, 5000);
+      }
+    }
     
-    showAlert(`Error: ${error.message}`, 'error', solution);
-    progressContainer.style.display = 'none';
-  } finally {
-    isProcessing = false;
-    updateProcessButton();
-  }
-}
+    // Update progress bar
+    function updateProgress(text, percent) {
+      progressText.textContent = text;
+      progressBarFill.style.width = `${percent}%`;
+    }
+    
+    // Process files
+    async function processFiles() {
+      if (oldUrls.length === 0 || newUrls.length === 0) {
+        showAlert(
+          'Please upload both old and new URL files', 
+          'error',
+          'You need to upload two CSV files: one with old URLs and one with new URLs.'
+        );
+        return;
+      }
+
+      isProcessing = true;
+      updateProcessButton();
+      showAlert('');
+      resultsContainer.style.display = 'none';
+      progressContainer.style.display = 'block';
+      updateProgress('Processing URLs...', 0);
+
+      try {
+        // Step 1: Process old URLs
+        updateProgress('Processing old URLs...', 10);
+        
+        // Step 2: Process new URLs
+        updateProgress('Processing new URLs...', 30);
+        
+        // Step 3: Find matches
+        updateProgress('Finding best matches...', 50);
+        
+        // Get batch size and delay from settings
+        const batchSizeValue = parseInt(batchSize.value) || 5;
+        const batchDelayValue = parseInt(batchDelay.value) || 1000;
+        
+        // Validate settings
+        if (batchSizeValue < 1 || batchSizeValue > 20) {
+          throw new Error('Batch size must be between 1 and 20');
+        }
+        
+        if (batchDelayValue < 500 || batchDelayValue > 5000) {
+          throw new Error('Batch delay must be between 500ms and 5000ms');
+        }
+        
+        const response = await fetch('/api/find-matches', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            oldUrls,
+            newUrls,
+            batchSize: batchSizeValue,
+            delayMs: batchDelayValue
+          }),
+        });
+        
+        // Handle HTTP errors
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to process URLs', { 
+            cause: { solution: errorData.solution } 
+          });
+        }
+        
+        const data = await response.json();
+        mappings = data.mappings;
+        
+        // Step 4: Generate explanations if enabled
+        if (showExplanations.checked && mappings.length > 0) {
+          updateProgress('Generating explanations...', 75);
+          
+          // Process explanations in batches to avoid rate limits
+          const explanationBatchSize = 3; // Smaller batch size for explanations
+          
+          for (let i = 0; i < mappings.length; i += explanationBatchSize) {
+            const batch = mappings.slice(i, i + explanationBatchSize);
+            
+            // Process batch with Promise.all for parallel requests
+            const batchPromises = batch.map(async (mapping, index) => {
+              try {
+                const explResponse = await fetch('/api/explanations', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    oldUrl: mapping.oldUrl,
+                    newUrl: mapping.newUrl,
+                    confidence: mapping.confidence,
+                  }),
+                });
+                
+                if (explResponse.ok) {
+                  const explData = await explResponse.json();
+                  mapping.explanation = explData.explanation;
+                } else {
+                  mapping.explanation = 'Could not generate explanation.';
+                }
+              } catch (error) {
+                console.error('Error generating explanation:', error);
+                mapping.explanation = 'Error generating explanation.';
+              }
+            });
+            
+            // Wait for all explanations in this batch
+            await Promise.all(batchPromises);
+            
+            // Add delay between batches
+            if (i + explanationBatchSize < mappings.length) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            // Update progress for explanations
+            updateProgress('Generating explanations...', 75 + (i / mappings.length) * 20);
+          }
+        }
+        
+        // Step 5: Display results
+        updateProgress('Completed successfully!', 100);
+        displayResults(mappings);
+        showAlert('URL mapping completed successfully!', 'success');
+      } catch (error) {
+        console.error('Error processing files:', error);
+        
+        // Extract solution from error cause if available
+        const solution = error.cause?.solution || 
+          'Try adjusting batch size and delay in advanced settings, or check your network connection.';
+        
+        showAlert(`Error: ${error.message}`, 'error', solution);
+        progressContainer.style.display = 'none';
+      } finally {
+        isProcessing = false;
+        updateProcessButton();
+      }
+    }
+    
+    // Display results
+    function displayResults(mappings) {
+      resultsTableBody.innerHTML = '';
+      
+      mappings.forEach(mapping => {
+        const row = document.createElement('tr');
+        
+        // Old URL cell
+        const oldUrlCell = document.createElement('td');
+        oldUrlCell.textContent = mapping.oldUrl;
+        row.appendChild(oldUrlCell);
+        
+        // New URL cell
+        const newUrlCell = document.createElement('td');
+        newUrlCell.textContent = mapping.newUrl;
+        row.appendChild(newUrlCell);
+        
+        // Confidence cell
+        const confidenceCell = document.createElement('td');
+        const confidencePercent = (mapping.confidence * 100).toFixed(1);
+        confidenceCell.innerHTML = `
+          ${confidencePercent}%
+          <div class="confidence-bar">
+            <div class="confidence-fill ${getConfidenceClass(mapping.confidence)}" 
+                 style="width: ${confidencePercent}%"></div>
+          </div>
+        `;
+        row.appendChild(confidenceCell);
+        
+        // Explanation cell
+        const explanationCell = document.createElement('td');
+        explanationCell.className = 'explanation-cell';
+        explanationCell.textContent = mapping.explanation || 'No explanation available';
+        row.appendChild(explanationCell);
+        
+        resultsTableBody.appendChild(row);
+      });
+      
+      resultsContainer.style.display = 'block';
+      progressContainer.style.display = 'none';
+    }
+    
+    // Get confidence class based on score
+    function getConfidenceClass(confidence) {
+      if (confidence >= 0.7) return 'confidence-high';
+      if (confidence >= 0.4) return 'confidence-medium';
+      return 'confidence-low';
+    }
+    
+    // Download results as CSV
+    function downloadCSV() {
+      if (mappings.length === 0) return;
+      
+      let csv = 'Old URL,New URL,Confidence,Explanation\n';
+      
+      mappings.forEach(mapping => {
+        const oldUrl = `"${mapping.oldUrl.replace(/"/g, '""')}"`;
+        const newUrl = `"${mapping.newUrl.replace(/"/g, '""')}"`;
+        const confidence = mapping.confidence.toFixed(4);
+        const explanation = mapping.explanation ? 
+          `"${mapping.explanation.replace(/"/g, '""')}"` : '""';
+        
+        csv += `${oldUrl},${newUrl},${confidence},${explanation}\n`;
+      });
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'url_mappings.csv');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
+    // Toggle advanced settings
+    function toggleSettings() {
+      settingsToggle.classList.toggle('open');
+      settingsContent.classList.toggle('open');
+    }
+    
+    // Initialize the application
+    init();
+  </script>
+</body>
+</html>
