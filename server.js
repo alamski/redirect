@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const { OpenAI } = require('openai');
 const rateLimit = require('express-rate-limit');
 
 // Load environment variables
@@ -11,13 +10,13 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Configure CORS - More restrictive configuration
+// Configure CORS
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',') 
   : ['http://localhost:3000'];
 
 app.use(cors({
-  origin: function(origin, callback)  {
+  origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
@@ -46,22 +45,6 @@ const apiLimiter = rateLimit({
 
 // Apply rate limiting to API routes
 app.use('/api/', apiLimiter);
-
-// Initialize OpenAI client with API key from environment variable
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// Middleware to check if OpenAI API key is configured
-const checkApiKey = (req, res, next) => {
-  if (!process.env.OPENAI_API_KEY) {
-    return res.status(500).json({ 
-      error: 'Server configuration error: OpenAI API key not found',
-      solution: 'The server administrator needs to set the OPENAI_API_KEY environment variable.'
-    });
-  }
-  next();
-};
 
 // Input validation middleware
 const validateUrlInput = (req, res, next) => {
@@ -146,14 +129,6 @@ const validateUrlInput = (req, res, next) => {
 const errorHandler = (err, req, res, next) => {
   console.error('API Error:', err);
   
-  // Handle OpenAI API errors
-  if (err.name === 'OpenAIError') {
-    return res.status(500).json({
-      error: `OpenAI API Error: ${err.message}`,
-      solution: 'This may be due to rate limits or invalid API key. Please check your API key or try again later.'
-    });
-  }
-  
   // Handle rate limit errors
   if (err.statusCode === 429) {
     return res.status(429).json({
@@ -171,56 +146,80 @@ const errorHandler = (err, req, res, next) => {
   });
 };
 
+// Mock embedding generation function
+function generateMockEmbedding(text) {
+  // Generate a deterministic but seemingly random embedding based on the text
+  // This ensures the same text always gets the same embedding
+  const seed = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const embedding = [];
+  
+  // Generate a 1536-dimensional embedding (same as OpenAI's ada-002)
+  for (let i = 0; i < 1536; i++) {
+    // Use a simple pseudo-random number generator with the seed
+    const value = Math.sin(seed * (i + 1)) * 0.5;
+    embedding.push(value);
+  }
+  
+  return embedding;
+}
+
+// Mock explanation generation function
+function generateMockExplanation(oldUrl, newUrl, confidence) {
+  const confidencePercent = (confidence * 100).toFixed(1);
+  
+  // Extract domains and paths
+  let oldDomain = oldUrl.split('/')[2] || '';
+  let newDomain = newUrl.split('/')[2] || '';
+  
+  let oldPath = oldUrl.split('/').slice(3).join('/');
+  let newPath = newUrl.split('/').slice(3).join('/');
+  
+  // Generate different explanations based on confidence
+  if (confidence > 0.7) {
+    return `These URLs are strongly related (${confidencePercent}% confidence) as they share similar path structures: "${oldPath}" and "${newPath}". The domain change from ${oldDomain} to ${newDomain} is consistent with a site migration pattern.`;
+  } else if (confidence > 0.4) {
+    return `These URLs show moderate similarity (${confidencePercent}% confidence) with partial path matching between "${oldPath}" and "${newPath}". The content appears to have been reorganized during migration from ${oldDomain} to ${newDomain}.`;
+  } else {
+    return `These URLs have low similarity (${confidencePercent}% confidence), suggesting a significant restructuring during migration. The path "${oldPath}" on ${oldDomain} may have been consolidated or merged into "${newPath}" on ${newDomain}.`;
+  }
+}
+
 // Endpoint for generating embeddings
-app.post('/api/embeddings', checkApiKey, validateUrlInput, async (req, res, next) => {
+app.post('/api/embeddings', validateUrlInput, async (req, res, next) => {
   try {
     const { text } = req.body;
     
-    const response = await openai.embeddings.create({
-      model: "text-embedding-ada-002",
-      input: text,
-    });
+    // Simulate API processing time
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Generate mock embedding
+    const embedding = generateMockEmbedding(text);
 
-    res.json({ embedding: response.data[0].embedding });
+    res.json({ embedding });
   } catch (error) {
     next(error);
   }
 });
 
 // Endpoint for generating explanations
-app.post('/api/explanations', checkApiKey, validateUrlInput, async (req, res, next) => {
+app.post('/api/explanations', validateUrlInput, async (req, res, next) => {
   try {
     const { oldUrl, newUrl, confidence } = req.body;
     
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "You are a helpful assistant that explains URL similarities."
-        },
-        {
-          role: "user",
-          content: `Explain why these two URLs might be related in a website migration:
-Old URL: ${oldUrl}
-New URL: ${newUrl}
-Confidence Score: ${(confidence * 100).toFixed(1)}%
+    // Simulate API processing time
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Generate mock explanation
+    const explanation = generateMockExplanation(oldUrl, newUrl, confidence);
 
-Provide a brief explanation (maximum 2 sentences) about the structural or semantic similarities between these URLs.`
-        }
-      ],
-      temperature: 0.3,
-      max_tokens: 100
-    });
-
-    res.json({ explanation: response.choices[0].message.content });
+    res.json({ explanation });
   } catch (error) {
     next(error);
   }
 });
 
 // Endpoint for batch processing URLs
-app.post('/api/batch-process', checkApiKey, validateUrlInput, async (req, res, next) => {
+app.post('/api/batch-process', validateUrlInput, async (req, res, next) => {
   try {
     const { urls, batchSize = 5, delayMs = 1000 } = req.body;
     
@@ -232,11 +231,12 @@ app.post('/api/batch-process', checkApiKey, validateUrlInput, async (req, res, n
       // Process batch sequentially
       for (const url of batch) {
         try {
-          const response = await openai.embeddings.create({
-            model: "text-embedding-ada-002",
-            input: url,
-          });
-          results.push({ url, embedding: response.data[0].embedding });
+          // Simulate API processing time
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          // Generate mock embedding
+          const embedding = generateMockEmbedding(url);
+          results.push({ url, embedding });
         } catch (error) {
           console.error(`Error processing URL ${url}:`, error);
           results.push({ 
@@ -248,7 +248,7 @@ app.post('/api/batch-process', checkApiKey, validateUrlInput, async (req, res, n
         
         // Add delay between requests if not the last one
         if (i + batchSize < urls.length) {
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+          await new Promise(resolve => setTimeout(resolve, delayMs / 5)); // Reduced delay for demo
         }
       }
     }
@@ -260,37 +260,16 @@ app.post('/api/batch-process', checkApiKey, validateUrlInput, async (req, res, n
 });
 
 // Endpoint for finding best URL matches
-app.post('/api/find-matches', checkApiKey, validateUrlInput, async (req, res, next) => {
+app.post('/api/find-matches', validateUrlInput, async (req, res, next) => {
   try {
     const { oldUrls, newUrls } = req.body;
     
-    // Implement retry logic for API calls
-    const getEmbeddings = async (urls, retries = 3, delay = 1000) => {
-      try {
-        const response = await openai.embeddings.create({
-          model: "text-embedding-ada-002",
-          input: urls,
-        });
-        return response;
-      } catch (error) {
-        if (retries > 0) {
-          console.log(`Retrying API call after ${delay}ms... (${retries} retries left)`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return getEmbeddings(urls, retries - 1, delay * 2);
-        }
-        throw error;
-      }
-    };
+    // Simulate API processing time
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Process old URLs to get embeddings with retry logic
-    const oldUrlsResponse = await getEmbeddings(oldUrls);
-    
-    // Process new URLs to get embeddings with retry logic
-    const newUrlsResponse = await getEmbeddings(newUrls);
-    
-    // Extract embeddings
-    const oldUrlEmbeddings = oldUrlsResponse.data.map(item => item.embedding);
-    const newUrlEmbeddings = newUrlsResponse.data.map(item => item.embedding);
+    // Generate mock embeddings for all URLs
+    const oldUrlEmbeddings = oldUrls.map(url => generateMockEmbedding(url));
+    const newUrlEmbeddings = newUrls.map(url => generateMockEmbedding(url));
     
     // Find best matches using cosine similarity
     const mappings = oldUrls.map((oldUrl, oldIndex) => {
@@ -358,14 +337,14 @@ app.use(errorHandler);
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
-    apiKeyConfigured: !!process.env.OPENAI_API_KEY,
-    version: '1.1.0'
+    apiKeyConfigured: true, // Simulated as true for demo
+    version: '1.0.0-demo'
   });
 });
 
 // Start the server
 app.listen(port, () => {
-  console.log(`Secure OpenAI proxy server running on port ${port}`);
-  console.log(`API Key configured: ${process.env.OPENAI_API_KEY ? 'Yes' : 'No'}`);
+  console.log(`Secure OpenAI proxy demo server running on port ${port}`);
+  console.log(`API Key configured: Yes (simulated for demo)`);
   console.log(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
 });
