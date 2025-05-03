@@ -10,40 +10,28 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Configure CORS
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ['http://localhost:3000', 'https://*.vercel.app'];
+// Add request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
 
+// Configure CORS with more permissive settings for debugging
 app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
+  origin: '*', // Allow all origins temporarily for debugging
   credentials: true
 }));
 
-app.use(express.json({ limit: '1mb' })); // Limit payload size
+app.use(express.json({ limit: '1mb' }));
 
-// Configure rate limiting
+// Simplified rate limiting for debugging
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // More lenient in development
+  windowMs: 15 * 60 * 1000,
+  max: 1000, // Increased limit for debugging
   standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: 'Too many requests, please try again later.',
-    retryAfter: 'Retry after 15 minutes'
-  }
+  legacyHeaders: false
 });
 
-// Apply rate limiting to API routes
 app.use('/api/', apiLimiter);
 
 // Input validation middleware
@@ -123,27 +111,6 @@ const validateUrlInput = (req, res, next) => {
   }
   
   next();
-};
-
-// Error handling middleware
-const errorHandler = (err, req, res, next) => {
-  console.error('API Error:', err);
-  
-  // Handle rate limit errors
-  if (err.statusCode === 429) {
-    return res.status(429).json({
-      error: 'Rate limit exceeded',
-      solution: 'Please reduce the frequency of requests or try again later.',
-      retryAfter: err.headers['retry-after'] || '15 minutes'
-    });
-  }
-  
-  // Handle other errors
-  res.status(500).json({
-    error: 'Internal server error',
-    message: err.message,
-    solution: 'Please try again later or contact the administrator if the problem persists.'
-  });
 };
 
 // Mock embedding generation function
@@ -330,21 +297,63 @@ function cosineSimilarity(vecA, vecB) {
 // Serve static files from the public directory
 app.use(express.static('public'));
 
-// Apply error handling middleware
-app.use(errorHandler);
-
-// Health check endpoint
+// Add a basic health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    apiKeyConfigured: true, // Simulated as true for demo
-    version: '1.0.0-demo'
+  try {
+    res.json({ 
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      cors: 'enabled',
+      rateLimit: 'enabled'
+    });
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({ error: 'Health check failed', details: error.message });
+  }
+});
+
+// Error handling middleware with detailed logging
+app.use((err, req, res, next) => {
+  console.error('Error details:', {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    body: req.body,
+    headers: req.headers
+  });
+
+  res.status(500).json({
+    error: 'Internal server error',
+    message: err.message,
+    path: req.path,
+    timestamp: new Date().toISOString()
   });
 });
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Secure OpenAI proxy demo server running on port ${port}`);
-  console.log(`API Key configured: Yes (simulated for demo)`);
-  console.log(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
+// Start the server with error handling
+const server = app.listen(port, () => {
+  console.log(`Server started on port ${port}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`CORS: enabled`);
+  console.log(`Rate limiting: enabled`);
+});
+
+// Handle server errors
+server.on('error', (error) => {
+  console.error('Server error:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${port} is already in use`);
+  }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
