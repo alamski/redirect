@@ -13,7 +13,7 @@ const port = process.env.PORT || 3000;
 // Configure CORS
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ['http://localhost:3000'];
+  : ['http://localhost:3000', 'https://*.vercel.app'];
 
 app.use(cors({
   origin: function(origin, callback) {
